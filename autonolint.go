@@ -3,11 +3,12 @@ package autonolint
 import (
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
 
-	"github.com/dave/dst/decorator"
 	"golang.org/x/tools/go/ast/astutil"
 )
 
@@ -64,29 +65,27 @@ func Process(issues []Issue) error {
 		if err != nil {
 			return fmt.Errorf("parser.ParseFile: %w", err)
 		}
-		dec := decorator.NewDecorator(fset)
 
+		diff := 0
 		for _, c := range cs {
-			pos := token.Pos(c.Offset)
-			path, _ := astutil.PathEnclosingInterval(f, pos, pos)
-			n, err := dec.DecorateNode(path[0])
-			if err != nil {
-				return fmt.Errorf("dec.DecorateNode: %w", err)
-			}
-
-			n.Decorations().End.Prepend(c.Comment())
+			pos := token.Pos(diff + c.Offset)
+			diff += c.Offset
+			f.Comments = append(f.Comments, &ast.CommentGroup{
+				List: []*ast.Comment{
+					{
+						Slash: pos,
+						Text:  c.Comment(),
+					},
+				},
+			})
 		}
 
-		ff, err := dec.DecorateFile(f)
-		if err != nil {
-			return fmt.Errorf("decorator.DecorateFile: %w", err)
-		}
 		out, err := os.Create(filename)
 		if err != nil {
 			return fmt.Errorf("os.Create: %w", err)
 		}
 		defer out.Close()
-		if err := decorator.Fprint(out, ff); err != nil {
+		if err := format.Node(out, fset, f); err != nil {
 			return fmt.Errorf("decorator.Fprint: %w", err)
 		}
 	}
@@ -100,17 +99,27 @@ func processIssue(issue Issue) (*InsertComment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parser.ParseFile: %w", err)
 	}
-	pos := token.Pos(issue.Pos.Offset + 1)
+	pos := token.Pos(issue.Pos.Offset)
 	path, _ := astutil.PathEnclosingInterval(f, pos, pos)
 	if len(path) == 0 {
 		return nil, errSkip
 	}
-	p := path[0]
+	var p ast.Node
+	for _, p1 := range path {
+		p11, isStmt := p1.(ast.Stmt)
+		if isStmt {
+			p = p11
+			break
+		}
+	}
+	if p == nil {
+		return nil, errSkip
+	}
 
 	return &InsertComment{
 		Filename:   issue.Pos.Filename,
-		Offset:     int(p.Pos()),
+		Offset:     int(p.Pos()-1),
 		FromLinter: issue.FromLinter,
-		Reason:     "",
+		Reason:     "test",
 	}, nil
 }
