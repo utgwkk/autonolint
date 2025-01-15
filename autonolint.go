@@ -47,11 +47,11 @@ func (c *InsertComment) Comment() string {
 	return "//nolint:" + c.FromLinter
 }
 
-func Process(issues []Issue) error {
+func Process(issues []Issue, reason string) error {
 	rewriteByFile := map[string][]*InsertComment{}
 
 	for _, issue := range issues {
-		c, err := processIssue(issue)
+		c, err := processIssue(issue, reason)
 		if err != nil {
 			if errors.Is(err, errSkip) {
 				continue
@@ -102,7 +102,7 @@ func Process(issues []Issue) error {
 	return nil
 }
 
-func processIssue(issue Issue) (*InsertComment, error) {
+func processIssue(issue Issue, reason string) (*InsertComment, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, issue.Pos.Filename, nil, parser.ParseComments)
 	if err != nil {
@@ -130,6 +130,6 @@ func processIssue(issue Issue) (*InsertComment, error) {
 		Filename:   issue.Pos.Filename,
 		Line:       line,
 		FromLinter: issue.FromLinter,
-		Reason:     "test",
+		Reason:     reason,
 	}, nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"io"
 	"log"
 	"os"
@@ -9,7 +10,13 @@ import (
 	"github.com/utgwkk/autonolint"
 )
 
+var (
+	argsReason = flag.String("reason", "", "The reason for //nolint")
+)
+
 func main() {
+	flag.Parse()
+
 	input, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		log.Fatal(err)
@@ -20,7 +27,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := autonolint.Process(inputJson); err != nil {
+	if err := autonolint.Process(inputJson, *argsReason); err != nil {
 		log.Fatal(err)
 	}
 }
