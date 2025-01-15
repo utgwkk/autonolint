@@ -8,6 +8,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"slices"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -60,20 +61,23 @@ func Process(issues []Issue) error {
 	}
 
 	for filename, cs := range rewriteByFile {
+		slices.SortFunc(cs, func(a, b *InsertComment) int {
+			return a.Offset - b.Offset
+		})
 		fset := token.NewFileSet()
 		f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
 		if err != nil {
 			return fmt.Errorf("parser.ParseFile: %w", err)
 		}
 
-		diff := 0
 		for _, c := range cs {
-			pos := token.Pos(diff + c.Offset)
-			diff += c.Offset
+			pos := token.Pos(c.Offset)
+			x := fset.File(f.Pos())
+			ls := x.LineStart(x.Line(pos))
 			f.Comments = append(f.Comments, &ast.CommentGroup{
 				List: []*ast.Comment{
 					{
-						Slash: pos,
+						Slash: ls,
 						Text:  c.Comment(),
 					},
 				},
@@ -99,8 +103,8 @@ func processIssue(issue Issue) (*InsertComment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parser.ParseFile: %w", err)
 	}
-	pos := token.Pos(issue.Pos.Offset)
-	path, _ := astutil.PathEnclosingInterval(f, pos, pos)
+	pos := token.Pos(issue.Pos.Offset + 1)
+	path, _ := astutil.PathEnclosingInterval(f, pos, pos+1)
 	if len(path) == 0 {
 		return nil, errSkip
 	}
@@ -118,7 +122,7 @@ func processIssue(issue Issue) (*InsertComment, error) {
 
 	return &InsertComment{
 		Filename:   issue.Pos.Filename,
-		Offset:     int(p.Pos()-1),
+		Offset:     issue.Pos.Offset,
 		FromLinter: issue.FromLinter,
 		Reason:     "test",
 	}, nil
