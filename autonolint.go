@@ -43,11 +43,11 @@ func (c *InsertComment) Comment() string {
 	return "//nolint:" + c.FromLinter
 }
 
-func Process(issues []Issue, reason string) error {
+func Process(issues []Issue, comment string) error {
 	rewriteByFile := map[string][]*InsertComment{}
 
 	for _, issue := range issues {
-		c, err := processIssue(issue, reason)
+		c, err := processIssue(issue, comment)
 		if err != nil {
 			return err
 		}

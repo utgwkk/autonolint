@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	argsReason = flag.String("reason", "", "The reason for //nolint")
+	argsCommend = flag.String("comment", "", "a comment after //nolint directive")
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := autonolint.Process(inputJson, *argsReason); err != nil {
+	if err := autonolint.Process(inputJson, *argsCommend); err != nil {
 		log.Fatal(err)
 	}
 }
