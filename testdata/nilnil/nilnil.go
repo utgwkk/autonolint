@@ -1,4 +1,4 @@
-package a
+package nilnil
 
 func F() (any, error) {
 	if false {

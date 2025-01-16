@@ -13,6 +13,8 @@ import (
 type Issue struct {
 	FromLinter string
 
+	Text string
+
 	Pos Pos
 }
 
