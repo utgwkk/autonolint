@@ -3,15 +3,11 @@ package autonolint
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
-	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
-
-	"golang.org/x/tools/go/ast/astutil"
 )
 
 type Issue struct {
@@ -38,8 +34,6 @@ type InsertComment struct {
 	Reason string
 }
 
-var errSkip = errors.New("skip")
-
 func (c *InsertComment) Comment() string {
 	if c.Reason != "" {
 		return "//nolint:" + c.FromLinter + " // " + c.Reason
@@ -53,9 +47,6 @@ func Process(issues []Issue, reason string) error {
 	for _, issue := range issues {
 		c, err := processIssue(issue, reason)
 		if err != nil {
-			if errors.Is(err, errSkip) {
-				continue
-			}
 			return err
 		}
 		rewriteByFile[c.Filename] = append(rewriteByFile[c.Filename], c)
@@ -104,27 +95,11 @@ func Process(issues []Issue, reason string) error {
 
 func processIssue(issue Issue, reason string) (*InsertComment, error) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, issue.Pos.Filename, nil, parser.ParseComments)
-	if err != nil {
+	if _, err := parser.ParseFile(fset, issue.Pos.Filename, nil, parser.ParseComments); err != nil {
 		return nil, fmt.Errorf("parser.ParseFile: %w", err)
 	}
-	pos := token.Pos(issue.Pos.Offset + 1)
-	path, _ := astutil.PathEnclosingInterval(f, pos, pos+1)
-	if len(path) == 0 {
-		return nil, errSkip
-	}
-	var p ast.Node
-	for _, p1 := range path {
-		p11, isStmt := p1.(ast.Stmt)
-		if isStmt {
-			p = p11
-			break
-		}
-	}
-	if p == nil {
-		return nil, errSkip
-	}
-	line := fset.File(1).Line(p.Pos())
+	pos := token.Pos(issue.Pos.Offset)
+	line := fset.File(pos).Line(pos)
 
 	return &InsertComment{
 		Filename:   issue.Pos.Filename,
