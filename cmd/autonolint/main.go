@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"io"
 	"log"
@@ -22,12 +21,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var inputJson []autonolint.Issue
-	if err := json.Unmarshal(input, &inputJson); err != nil {
+	issues, err := autonolint.ParseInput(input)
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := autonolint.Process(inputJson, *argsCommend); err != nil {
+	if err := autonolint.Process(issues, *argsCommend); err != nil {
 		log.Fatal(err)
 	}
 }

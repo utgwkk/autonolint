@@ -68,10 +68,6 @@ func TestAutonolintProcess(t *testing.T) {
 	}
 }
 
-type ExecResult struct {
-	Issues []Issue
-}
-
 func executeGolangciLint(dir string) (*ExecResult, error) {
 	lintOut := &bytes.Buffer{}
 
