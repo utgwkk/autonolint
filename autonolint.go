@@ -10,22 +10,6 @@ import (
 	"os"
 )
 
-type Issue struct {
-	FromLinter string
-
-	Text string
-
-	Pos Pos
-}
-
-type Pos struct {
-	Filename string
-
-	Offset int
-	Line   int
-	Column int
-}
-
 type InsertComment struct {
 	Filename string
 
