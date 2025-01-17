@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 )
 
@@ -39,27 +40,14 @@ func Process(issues []Issue, comment string) error {
 	}
 
 	for filename, cs := range rewriteByFile {
-		buf := &bytes.Buffer{}
 		rewritesByLine := map[int][]*InsertComment{}
 		for _, c := range cs {
 			rewritesByLine[c.Line] = append(rewritesByLine[c.Line], c)
 		}
-		in, err := os.Open(filename)
-		if err != nil {
-			return err
+		buf := &bytes.Buffer{}
+		if err := writeFileWithNolintComments(filename, buf, rewritesByLine); err != nil {
+			return fmt.Errorf("writeFileWithNolintComments: %w", err)
 		}
-		s := bufio.NewScanner(in)
-		lineno := 1
-		for s.Scan() {
-			if cs, ok := rewritesByLine[lineno]; ok {
-				for _, c := range cs {
-					buf.WriteString(c.Comment() + "\n")
-				}
-			}
-			buf.WriteString(s.Text() + "\n")
-			lineno++
-		}
-		in.Close()
 
 		formatted, err := format.Source(buf.Bytes())
 		if err != nil {
@@ -93,4 +81,26 @@ func processIssue(issue Issue, reason string) (*InsertComment, error) {
 		FromLinter: issue.FromLinter,
 		Reason:     reason,
 	}, nil
+}
+
+func writeFileWithNolintComments(filename string, out io.StringWriter, rewritesByLine map[int][]*InsertComment) error {
+	in, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	s := bufio.NewScanner(in)
+	lineno := 1
+	for s.Scan() {
+		if cs, ok := rewritesByLine[lineno]; ok {
+			for _, c := range cs {
+				out.WriteString(c.Comment() + "\n")
+			}
+		}
+		out.WriteString(s.Text() + "\n")
+		lineno++
+	}
+
+	return nil
 }
