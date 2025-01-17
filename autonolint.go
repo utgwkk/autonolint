@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"strings"
 )
 
 type InsertComment struct {
@@ -93,12 +94,16 @@ func writeFileWithNolintComments(filename string, out io.StringWriter, rewritesB
 	s := bufio.NewScanner(in)
 	lineno := 1
 	for s.Scan() {
+		text := s.Text()
 		if cs, ok := rewritesByLine[lineno]; ok {
+			// Keep indent
+			withoutTab := strings.TrimLeft(text, "\t")
+			tab := strings.Repeat("\t", max(len(text)-len(withoutTab), 0))
 			for _, c := range cs {
-				out.WriteString(c.Comment() + "\n")
+				out.WriteString(tab + c.Comment() + "\n")
 			}
 		}
-		out.WriteString(s.Text() + "\n")
+		out.WriteString(text + "\n")
 		lineno++
 	}
 
